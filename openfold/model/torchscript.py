@@ -209,7 +209,7 @@ def script_submodules_(
 
     # Aggressively script as much as possible first...
     _script_submodules_helper_(model, types, attempt_trace, to_trace)
-  
+
     # ... and then trace stragglers.
-    if(attempt_trace and len(to_trace) > 0):
+    if attempt_trace and to_trace:
         _trace_submodules_(model, to_trace, batch_dims=batch_dims)

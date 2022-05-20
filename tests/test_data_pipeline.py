@@ -64,8 +64,6 @@ class TestDataPipeline(unittest.TestCase):
 
         openfold_feature_dict["template_all_atom_masks"] = openfold_feature_dict["template_all_atom_mask"]
 
-        checked = []
-
         # AlphaFold and OpenFold process their MSAs in slightly different
         # orders, which we compensate for below.
         m_a = alphafold_feature_dict["msa"]
@@ -83,8 +81,6 @@ class TestDataPipeline(unittest.TestCase):
             )
         )
 
-        checked.append("msa")
-
         # The corresponding rows of the deletion matrix should also be equal
         matching_idx = np.argmax(matching_rows, axis=-1)
         rearranged_o_dmi = openfold_feature_dict["deletion_matrix_int"]
@@ -96,8 +92,7 @@ class TestDataPipeline(unittest.TestCase):
             )
         )
 
-        checked.append("deletion_matrix_int")
-
+        checked = ["msa", "deletion_matrix_int"]
         # Remaining features have to be precisely equal
         for k, v in alphafold_feature_dict.items():
             self.assertTrue(

@@ -151,8 +151,7 @@ class Template(unittest.TestCase):
                 config.model.embeddings_and_evoformer.template,
                 config.model.global_config,
             )
-            act = te(pair, batch, mask_2d, is_training=False)
-            return act
+            return te(pair, batch, mask_2d, is_training=False)
 
         f = hk.transform(test_template_embedding)
 

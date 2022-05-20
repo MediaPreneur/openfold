@@ -23,12 +23,11 @@ BLOCK_ARGS = List[BLOCK_ARG]
 
 
 def get_checkpoint_fn():
-    if(deepspeed.checkpointing.is_configured()):
-        checkpoint = deepspeed.checkpointing.checkpoint
-    else:
-        checkpoint = torch.utils.checkpoint.checkpoint
-
-    return checkpoint
+    return (
+        deepspeed.checkpointing.checkpoint
+        if (deepspeed.checkpointing.is_configured())
+        else torch.utils.checkpoint.checkpoint
+    )
 
 
 @torch.jit.ignore

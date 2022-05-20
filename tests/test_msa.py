@@ -60,8 +60,7 @@ class TestMSARowAttentionWithPairBias(unittest.TestCase):
             msa_row = alphafold.model.modules.MSARowAttentionWithPairBias(
                 c_e.msa_row_attention_with_pair_bias, config.model.global_config
             )
-            act = msa_row(msa_act=msa_act, msa_mask=msa_mask, pair_act=pair_act)
-            return act
+            return msa_row(msa_act=msa_act, msa_mask=msa_mask, pair_act=pair_act)
 
         f = hk.transform(run_msa_row_att)
 
@@ -126,8 +125,7 @@ class TestMSAColumnAttention(unittest.TestCase):
             msa_col = alphafold.model.modules.MSAColumnAttention(
                 c_e.msa_column_attention, config.model.global_config
             )
-            act = msa_col(msa_act=msa_act, msa_mask=msa_mask)
-            return act
+            return msa_col(msa_act=msa_act, msa_mask=msa_mask)
 
         f = hk.transform(run_msa_col_att)
 
@@ -192,8 +190,7 @@ class TestMSAColumnGlobalAttention(unittest.TestCase):
                 config.model.global_config,
                 name="msa_column_global_attention",
             )
-            act = msa_col(msa_act=msa_act, msa_mask=msa_mask)
-            return act
+            return msa_col(msa_act=msa_act, msa_mask=msa_mask)
 
         f = hk.transform(run_msa_col_global_att)
 

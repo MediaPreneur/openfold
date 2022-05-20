@@ -41,11 +41,7 @@ def np_to_tensor_dict(
         A dictionary of features mapping feature names to features. Only the given
         features are returned, all other ones are filtered out.
     """ 
-    tensor_dict = {
-        k: torch.tensor(v) for k, v in np_example.items() if k in features
-    }
-
-    return tensor_dict
+    return {k: torch.tensor(v) for k, v in np_example.items() if k in features}
 
 
 def make_data_config(
@@ -94,7 +90,7 @@ def np_example_to_features(
             cfg[mode],
         )
 
-    return {k: v for k, v in features.items()}
+    return dict(features.items())
 
 
 class FeaturePipeline:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 def _write_file(args, file_in_progress):
     file_id = file_in_progress[1]
-    fname = file_id.upper() + ".core"
+    fname = f"{file_id.upper()}.core"
     fpath = os.path.join(args.output_dir, fname)
     with open(fpath, "w") as fp:
         fp.write('\n'.join(file_in_progress))
@@ -19,10 +19,9 @@ def main(args):
 
     file_in_progress = []
     for line in proteinnet_string:
-        if(line == "[ID]\n"):
-            if(len(file_in_progress) > 0):
-                _write_file(args, file_in_progress)
-                file_in_progress = []
+        if (line == "[ID]\n") and (len(file_in_progress) > 0):
+            _write_file(args, file_in_progress)
+            file_in_progress = []
 
         file_in_progress.append(line.strip())
 

@@ -52,13 +52,8 @@ class AuxiliaryHeads(nn.Module):
         self.config = config
 
     def forward(self, outputs):
-        aux_out = {}
         lddt_logits = self.plddt(outputs["sm"]["single"])
-        aux_out["lddt_logits"] = lddt_logits
-
-        # Required for relaxation later on
-        aux_out["plddt"] = compute_plddt(lddt_logits)
-
+        aux_out = {"lddt_logits": lddt_logits, "plddt": compute_plddt(lddt_logits)}
         distogram_logits = self.distogram(outputs["pair"])
         aux_out["distogram_logits"] = distogram_logits
 
@@ -78,12 +73,11 @@ class AuxiliaryHeads(nn.Module):
             aux_out["predicted_tm_score"] = compute_tm(
                 tm_logits, **self.config.tm
             )
-            aux_out.update(
-                compute_predicted_aligned_error(
-                    tm_logits,
-                    **self.config.tm,
-                )
+            aux_out |= compute_predicted_aligned_error(
+                tm_logits,
+                **self.config.tm,
             )
+
 
         return aux_out
 
@@ -179,9 +173,7 @@ class TMScoreHead(nn.Module):
         Returns:
             [*, N_res, N_res, no_bins] prediction
         """
-        # [*, N, N, no_bins]
-        logits = self.linear(z)
-        return logits
+        return self.linear(z)
 
 
 class MaskedMSAHead(nn.Module):
@@ -212,9 +204,7 @@ class MaskedMSAHead(nn.Module):
         Returns:
             [*, N_seq, N_res, C_out] reconstruction
         """
-        # [*, N_seq, N_res, C_out]
-        logits = self.linear(m)
-        return logits
+        return self.linear(m)
 
 
 class ExperimentallyResolvedHead(nn.Module):
@@ -246,6 +236,4 @@ class ExperimentallyResolvedHead(nn.Module):
         Returns:
             [*, N, C_out] logits
         """
-        # [*, N, C_out]
-        logits = self.linear(s)
-        return logits
+        return self.linear(s)

@@ -46,7 +46,7 @@ def random_extra_msa_feats(n_extra, n, batch_size=None):
     b = []
     if batch_size is not None:
         b.append(batch_size)
-    batch = {
+    return {
         "extra_msa": np.random.randint(0, 22, (*b, n_extra, n)).astype(
             np.int64
         ),
@@ -60,7 +60,6 @@ def random_extra_msa_feats(n_extra, n, batch_size=None):
             np.float32
         ),
     }
-    return batch
 
 
 def random_affines_vector(dim):

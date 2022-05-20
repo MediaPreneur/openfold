@@ -24,9 +24,7 @@ def parse_file(f, args):
     else:
         mmcif = mmcif.mmcif_object
 
-    local_data = {}
-    local_data["release_date"] = mmcif.header["release_date"]
-
+    local_data = {"release_date": mmcif.header["release_date"]}
     chain_ids, seqs = list(zip(*mmcif.chain_to_seqres.items()))
     local_data["chain_ids"] = chain_ids
     local_data["seqs"] = seqs
@@ -44,7 +42,7 @@ def main(args):
     with Pool(processes=args.no_workers) as p:
         with tqdm(total=len(files)) as pbar:
             for d in p.imap_unordered(fn, files, chunksize=args.chunksize):
-                data.update(d)
+                data |= d
                 pbar.update()
 
     with open(args.output_path, "w") as fp:

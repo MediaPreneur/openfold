@@ -55,8 +55,7 @@ class TestOuterProductMean(unittest.TestCase):
                 config.model.global_config,
                 consts.c_z,
             )
-            act = opm(act=msa_act, mask=msa_mask)
-            return act
+            return opm(act=msa_act, mask=msa_mask)
 
         f = hk.transform(run_opm)
 

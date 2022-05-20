@@ -138,7 +138,7 @@ class AlphaFold(nn.Module):
             ).to(z.dtype)
             t = self.template_pair_embedder(t)
 
-            single_template_embeds.update({"pair": t})
+            single_template_embeds["pair"] = t
 
             template_embeds.append(single_template_embeds)
 
@@ -170,14 +170,11 @@ class AlphaFold(nn.Module):
         if self.config.template.embed_angles:
             ret["template_angle_embedding"] = template_embeds["angle"]
 
-        ret.update({"template_pair_embedding": t})
+        ret["template_pair_embedding"] = t
 
         return ret
 
     def iteration(self, feats, m_1_prev, z_prev, x_prev, _recycle=True):
-        # Primary output dictionary
-        outputs = {}
-
         # This needs to be done manually for DeepSpeed's sake
         dtype = next(self.parameters()).dtype
         for k in feats:
@@ -315,17 +312,15 @@ class AlphaFold(nn.Module):
             _mask_trans=self.config._mask_trans,
         )
 
-        outputs["msa"] = m[..., :n_seq, :, :]
-        outputs["pair"] = z
-        outputs["single"] = s
+        outputs = {
+            "msa": m[..., :n_seq, :, :],
+            "pair": z,
+            "single": s,
+            "sm": self.structure_module(
+                s, z, feats["aatype"], mask=feats["seq_mask"].to(dtype=s.dtype)
+            ),
+        }
 
-        # Predict 3D structure
-        outputs["sm"] = self.structure_module(
-            s,
-            z,
-            feats["aatype"],
-            mask=feats["seq_mask"].to(dtype=s.dtype),
-        )
         outputs["final_atom_positions"] = atom14_to_atom37(
             outputs["sm"]["positions"][-1], feats
         )

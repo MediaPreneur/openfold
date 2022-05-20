@@ -7,8 +7,8 @@ import shutil
 def main(args):
     count = 0
     max_count = args.max_count if args.max_count is not None else -1
-    msas = sorted(f for f in os.listdir(args.msa_dir))
-    mmcifs = sorted(f for f in os.listdir(args.mmcif_dir))
+    msas = sorted(iter(os.listdir(args.msa_dir)))
+    mmcifs = sorted(iter(os.listdir(args.mmcif_dir)))
     mmcif_idx = 0
     for f in msas:
         if(count == max_count):
@@ -19,9 +19,9 @@ def main(args):
         spl = name.upper().split('_')
         if(len(spl) != 3):
             continue
-         
+
         pdb_id, _, chain_id = spl
-       
+
         while pdb_id > os.path.splitext(mmcifs[mmcif_idx])[0].upper():
             mmcif_idx += 1
 

@@ -63,8 +63,7 @@ class TestTriangularAttention(unittest.TestCase):
                 config.model.global_config,
                 name=name,
             )
-            act = tri_att(pair_act=pair_act, pair_mask=pair_mask)
-            return act
+            return tri_att(pair_act=pair_act, pair_mask=pair_mask)
 
         f = hk.transform(run_tri_att)
 

@@ -38,23 +38,16 @@ class TestImportWeights(unittest.TestCase):
         prefix = "alphafold/alphafold_iteration/"
 
         test_pairs = [
-            # Normal linear weight
             (
                 torch.as_tensor(
-                    data[
-                        prefix + "structure_module/initial_projection//weights"
-                    ]
+                    data[f"{prefix}structure_module/initial_projection//weights"]
                 ).transpose(-1, -2),
                 model.structure_module.linear_in.weight,
             ),
-            # Normal layer norm param
             (
-                torch.as_tensor(
-                    data[prefix + "evoformer/prev_pair_norm//offset"],
-                ),
+                torch.as_tensor(data[f"{prefix}evoformer/prev_pair_norm//offset"]),
                 model.recycling_embedder.layer_norm_z.bias,
             ),
-            # From a stack
             (
                 torch.as_tensor(
                     data[
@@ -68,6 +61,7 @@ class TestImportWeights(unittest.TestCase):
                 model.evoformer.blocks[1].core.outer_product_mean.linear_1.weight,
             ),
         ]
+
 
         for w_alpha, w_repro in test_pairs:
             self.assertTrue(torch.all(w_alpha == w_repro))

@@ -54,7 +54,7 @@ class HHSearch:
         self.maxseq = maxseq
 
         for database_path in self.databases:
-            if not glob.glob(database_path + "_*"):
+            if not glob.glob(f"{database_path}_*"):
                 logging.error(
                     "Could not find HHsearch database %s", database_path
                 )
@@ -72,8 +72,7 @@ class HHSearch:
 
             db_cmd = []
             for db_path in self.databases:
-                db_cmd.append("-d")
-                db_cmd.append(db_path)
+                db_cmd.extend(("-d", db_path))
             cmd = [
                 self.binary_path,
                 "-i",

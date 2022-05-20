@@ -97,7 +97,7 @@ def _get_pdb_id_and_chain(hit: parsers.TemplateHit) -> Tuple[str, str]:
     id_match = re.match(r"[a-zA-Z\d]{4}_[a-zA-Z0-9.]+", hit.name)
     if not id_match:
         raise ValueError(f"hit.name did not start with PDBID_chain: {hit.name}")
-    pdb_id, chain_id = id_match.group(0).split("_")
+    pdb_id, chain_id = id_match[0].split("_")
     return pdb_id.lower(), chain_id
 
 
@@ -121,13 +121,12 @@ def _is_after_cutoff(
         raise ValueError("The release_date_cutoff must not be None.")
     if pdb_id_upper in release_dates:
         return release_dates[pdb_id_upper] > release_date_cutoff
-    else:
-        # Since this is just a quick prefilter to reduce the number of mmCIF files
-        # we need to parse, we don't have to worry about returning True here.
-        logging.info(
-            "Template structure not in release dates dict: %s", pdb_id
-        )
-        return False
+    # Since this is just a quick prefilter to reduce the number of mmCIF files
+    # we need to parse, we don't have to worry about returning True here.
+    logging.info(
+        "Template structure not in release dates dict: %s", pdb_id
+    )
+    return False
 
 
 def _parse_obsolete(obsolete_file_path: str) -> Mapping[str, str]:
@@ -239,9 +238,11 @@ def _assess_hhsearch_hit(
             f"({release_date_cutoff})."
         )
 
-    if query_pdb_code is not None:
-        if query_pdb_code.lower() == hit_pdb_code.lower():
-            raise PdbIdError("PDB code identical to Query PDB code.")
+    if (
+        query_pdb_code is not None
+        and query_pdb_code.lower() == hit_pdb_code.lower()
+    ):
+        raise PdbIdError("PDB code identical to Query PDB code.")
 
     if align_ratio <= min_align_ratio:
         raise AlignRatioError(
@@ -313,11 +314,10 @@ def _find_template_in_pdb(
 
     # Return a chain sequence that fuzzy matches (X = wildcard) the template.
     # Make parentheses unnamed groups (?:_) to avoid the 100 named groups limit.
-    regex = ["." if aa == "X" else "(?:%s|X)" % aa for aa in template_sequence]
+    regex = ["." if aa == "X" else f"(?:{aa}|X)" for aa in template_sequence]
     regex = re.compile("".join(regex))
     for chain_id, chain_sequence in mmcif_object.chain_to_seqres.items():
-        match = re.search(regex, chain_sequence)
-        if match:
+        if match := re.search(regex, chain_sequence):
             logging.info(
                 "Found a fuzzy sequence-only match %s_%s.", pdb_id, chain_id
             )
@@ -390,38 +390,31 @@ def _realign_pdb_template_to_query(
     # Sometimes the template chain id is unknown. But if there is only a single
     # sequence within the mmcif_object, it is safe to assume it is that one.
     if not new_template_sequence:
-        if len(mmcif_object.chain_to_seqres) == 1:
-            logging.info(
-                "Could not find %s in %s, but there is only 1 sequence, so "
-                "using that one.",
-                template_chain_id,
-                mmcif_object.file_id,
-            )
-            new_template_sequence = list(mmcif_object.chain_to_seqres.values())[
-                0
-            ]
-        else:
+        if len(mmcif_object.chain_to_seqres) != 1:
             raise QueryToTemplateAlignError(
                 f"Could not find chain {template_chain_id} in {mmcif_object.file_id}. "
                 "If there are no mmCIF parsing errors, it is possible it was not a "
                 "protein chain."
             )
 
+        logging.info(
+            "Could not find %s in %s, but there is only 1 sequence, so "
+            "using that one.",
+            template_chain_id,
+            mmcif_object.file_id,
+        )
+        new_template_sequence = list(mmcif_object.chain_to_seqres.values())[
+            0
+        ]
     try:
         (old_aligned_template, new_aligned_template), _ = parsers.parse_a3m(
             aligner.align([old_template_sequence, new_template_sequence])
         )
     except Exception as e:
         raise QueryToTemplateAlignError(
-            "Could not align old template %s to template %s (%s_%s). Error: %s"
-            % (
-                old_template_sequence,
-                new_template_sequence,
-                mmcif_object.file_id,
-                template_chain_id,
-                str(e),
-            )
+            f"Could not align old template {old_template_sequence} to template {new_template_sequence} ({mmcif_object.file_id}_{template_chain_id}). Error: {str(e)}"
         )
+
 
     logging.info(
         "Old aligned template: %s\nNew aligned template: %s",
@@ -464,11 +457,10 @@ def _realign_pdb_template_to_query(
             )
         )
 
-    new_query_to_template_mapping = {}
-    for query_index, old_template_index in old_mapping.items():
-        new_query_to_template_mapping[
-            query_index
-        ] = old_to_new_template_mapping.get(old_template_index, -1)
+    new_query_to_template_mapping = {
+        query_index: old_to_new_template_mapping.get(old_template_index, -1)
+        for query_index, old_template_index in old_mapping.items()
+    }
 
     new_template_sequence = new_template_sequence.replace("-", "")
 
@@ -567,9 +559,7 @@ def _extract_template_features(
             unmasked residues.
     """
     if mmcif_object is None or not mmcif_object.chain_to_seqres:
-        raise NoChainsError(
-            "No chains in PDB: %s_%s" % (pdb_id, template_chain_id)
-        )
+        raise NoChainsError(f"No chains in PDB: {pdb_id}_{template_chain_id}")
 
     warning = None
     try:
@@ -618,8 +608,9 @@ def _extract_template_features(
         )
     except (CaDistanceError, KeyError) as ex:
         raise NoAtomDataInTemplateError(
-            "Could not get atom data (%s_%s): %s" % (pdb_id, chain_id, str(ex))
+            f"Could not get atom data ({pdb_id}_{chain_id}): {str(ex)}"
         ) from ex
+
 
     all_atom_positions = np.split(
         all_atom_positions, all_atom_positions.shape[0]
@@ -724,17 +715,14 @@ def _build_query_to_hit_index_mapping(
     min_idx = min(x for x in indices_query if x > -1)
     fixed_indices_query = [x - min_idx if x > -1 else -1 for x in indices_query]
 
-    # Zip the corrected indices, ignore case where both seqs have gap characters.
-    mapping = {}
-    for q_i, q_t in zip(fixed_indices_query, fixed_indices_hit):
-        if q_t != -1 and q_i != -1:
-            if q_t >= len(hit_sequence) or q_i + hhsearch_query_offset >= len(
-                original_query_sequence
-            ):
-                continue
-            mapping[q_i + hhsearch_query_offset] = q_t
-
-    return mapping
+    return {
+        q_i + hhsearch_query_offset: q_t
+        for q_i, q_t in zip(fixed_indices_query, fixed_indices_hit)
+        if q_t != -1
+        and q_i != -1
+        and q_t < len(hit_sequence)
+        and q_i + hhsearch_query_offset < len(original_query_sequence)
+    }
 
 
 @dataclasses.dataclass(frozen=True)
@@ -762,9 +750,8 @@ def _prefilter_hit(
     # Fail hard if we can't get the PDB ID and chain name from the hit.
     hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
 
-    if hit_pdb_code not in release_dates:
-        if hit_pdb_code in obsolete_pdbs:
-            hit_pdb_code = obsolete_pdbs[hit_pdb_code]
+    if hit_pdb_code not in release_dates and hit_pdb_code in obsolete_pdbs:
+        hit_pdb_code = obsolete_pdbs[hit_pdb_code]
 
     # Pass hit_pdb_code since it might have changed due to the pdb being 
     # obsolete.
@@ -808,9 +795,8 @@ def _process_single_hit(
     # Fail hard if we can't get the PDB ID and chain name from the hit.
     hit_pdb_code, hit_chain_id = _get_pdb_id_and_chain(hit)
 
-    if hit_pdb_code not in release_dates:
-        if hit_pdb_code in obsolete_pdbs:
-            hit_pdb_code = obsolete_pdbs[hit_pdb_code]
+    if hit_pdb_code not in release_dates and hit_pdb_code in obsolete_pdbs:
+        hit_pdb_code = obsolete_pdbs[hit_pdb_code]
 
     mapping = _build_query_to_hit_index_mapping(
         hit.query,
@@ -824,7 +810,7 @@ def _process_single_hit(
     # remove gaps (which regardless have a missing confidence score).
     template_sequence = hit.hit_sequence.replace("-", "")
 
-    cif_path = os.path.join(mmcif_dir, hit_pdb_code + ".cif")
+    cif_path = os.path.join(mmcif_dir, f"{hit_pdb_code}.cif")
     logging.info(
         "Reading PDB entry from %s. Query: %s, template: %s",
         cif_path,
@@ -844,16 +830,12 @@ def _process_single_hit(
             parsing_result.mmcif_object.header["release_date"], "%Y-%m-%d"
         )
         if hit_release_date > max_template_date:
-            error = "Template %s date (%s) > max template date (%s)." % (
-                hit_pdb_code,
-                hit_release_date,
-                max_template_date,
-            )
+            error = f"Template {hit_pdb_code} date ({hit_release_date}) > max template date ({max_template_date})."
+
             if strict_error_check:
                 return SingleHitResult(features=None, error=error, warning=None)
-            else:
-                logging.info(error)
-                return SingleHitResult(features=None, error=None, warning=None)
+            logging.info(error)
+            return SingleHitResult(features=None, error=None, warning=None)
 
     try:
         features, realign_warning = _extract_template_features(
@@ -1003,9 +985,10 @@ class TemplateHitFeaturizer:
         """Computes the templates for given query sequence (more details above)."""
         logging.info("Searching for template for: %s", query_pdb_code)
 
-        template_features = {}
-        for template_feature_name in TEMPLATE_FEATURES:
-            template_features[template_feature_name] = []
+        template_features = {
+            template_feature_name: []
+            for template_feature_name in TEMPLATE_FEATURES
+        }
 
         # Always use a max_template_date. Set to query_release_date minus 60 days
         # if that's earlier.
@@ -1088,8 +1071,8 @@ class TemplateHitFeaturizer:
             else:
                 # Increment the hit counter, since we got features out of this hit.
                 num_hits += 1
-                for k in template_features:
-                    template_features[k].append(result.features[k])
+                for k, v in template_features.items():
+                    v.append(result.features[k])
 
         for name in template_features:
             if num_hits > 0:

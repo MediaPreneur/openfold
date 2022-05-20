@@ -121,9 +121,10 @@ def correct_msa_restypes(protein):
                 20,
                 21,
                 22,
-            ], "num_dim for %s out of expected range: %s" % (k, num_dim)
+            ], f"num_dim for {k} out of expected range: {num_dim}"
+
             protein[k] = torch.dot(protein[k], perm_matrix[:num_dim, :num_dim])
-    
+
     return protein
 
 
@@ -200,9 +201,10 @@ def sample_msa(protein, max_seq, keep_extra, seed=None):
     for k in MSA_FEATURE_NAMES:
         if k in protein:
             if keep_extra:
-                protein["extra_" + k] = torch.index_select(
+                protein[f"extra_{k}"] = torch.index_select(
                     protein[k], 0, not_sel_seq
                 )
+
             protein[k] = torch.index_select(protein[k], 0, sel_seq)
 
     return protein
@@ -226,18 +228,19 @@ def crop_extra_msa(protein, max_extra_msa):
     num_sel = min(max_extra_msa, num_seq)
     select_indices = torch.randperm(num_seq)[:num_sel]
     for k in MSA_FEATURE_NAMES:
-        if "extra_" + k in protein:
-            protein["extra_" + k] = torch.index_select(
-                protein["extra_" + k], 0, select_indices
+        if f"extra_{k}" in protein:
+            protein[f"extra_{k}"] = torch.index_select(
+                protein[f"extra_{k}"], 0, select_indices
             )
-    
+
+
     return protein
 
 
 def delete_extra_msa(protein):
     for k in MSA_FEATURE_NAMES:
-        if "extra_" + k in protein:
-            del protein["extra_" + k]
+        if f"extra_{k}" in protein:
+            del protein[f"extra_{k}"]
     return protein
 
 
@@ -400,13 +403,14 @@ def make_pseudo_beta(protein, prefix=""):
     """Create pseudo-beta (alpha for glycine) position and mask."""
     assert prefix in ["", "template_"]
     (
-        protein[prefix + "pseudo_beta"],
-        protein[prefix + "pseudo_beta_mask"],
+        protein[f"{prefix}pseudo_beta"],
+        protein[f"{prefix}pseudo_beta_mask"],
     ) = pseudo_beta_fn(
         protein["template_aatype" if prefix else "aatype"],
-        protein[prefix + "all_atom_positions"],
+        protein[f"{prefix}all_atom_positions"],
         protein["template_all_atom_mask" if prefix else "all_atom_mask"],
     )
+
     return protein
 
 
@@ -513,11 +517,10 @@ def make_fixed_size(
 
         padding = [(0, p - v.shape[i]) for i, p in enumerate(pad_size)]
         padding.reverse()
-        padding = list(itertools.chain(*padding))
-        if padding:
+        if padding := list(itertools.chain(*padding)):
             protein[k] = torch.nn.functional.pad(v, padding)
             protein[k] = torch.reshape(protein[k], pad_size)
-    
+
     return protein
 
 
@@ -598,11 +601,9 @@ def make_atom14_masks(protein):
         )
         atom_name_to_idx14 = {name: i for i, name in enumerate(atom_names)}
         restype_atom37_to_atom14.append(
-            [
-                (atom_name_to_idx14[name] if name in atom_name_to_idx14 else 0)
-                for name in rc.atom_types
-            ]
+            [atom_name_to_idx14.get(name, 0) for name in rc.atom_types]
         )
+
 
         restype_atom14_mask.append(
             [(1.0 if name else 0.0) for name in atom_names]
@@ -924,13 +925,12 @@ def get_chi_atom_indices():
     for residue_name in rc.restypes:
         residue_name = rc.restype_1to3[residue_name]
         residue_chi_angles = rc.chi_angles_atoms[residue_name]
-        atom_indices = []
-        for chi_angle in residue_chi_angles:
-            atom_indices.append([rc.atom_order[atom] for atom in chi_angle])
-        for _ in range(4 - len(atom_indices)):
-            atom_indices.append(
-                [0, 0, 0, 0]
-            )  # For chi angles not defined on the AA.
+        atom_indices = [
+            [rc.atom_order[atom] for atom in chi_angle]
+            for chi_angle in residue_chi_angles
+        ]
+
+        atom_indices.extend([0, 0, 0, 0] for _ in range(4 - len(atom_indices)))
         chi_atom_indices.append(atom_indices)
 
     chi_atom_indices.append([[0, 0, 0, 0]] * 4)  # For UNKNOWN residue.

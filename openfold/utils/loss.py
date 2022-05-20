@@ -35,18 +35,16 @@ from openfold.utils.tensor_utils import (
 
 
 def softmax_cross_entropy(logits, labels):
-    loss = -1 * torch.sum(
+    return -1 * torch.sum(
         labels * torch.nn.functional.log_softmax(logits, dim=-1),
         dim=-1,
     )
-    return loss
 
 
 def sigmoid_cross_entropy(logits, labels):
     log_p = torch.log(torch.sigmoid(logits))
     log_not_p = torch.log(torch.sigmoid(-logits))
-    loss = -labels * log_p - (1 - labels) * log_not_p
-    return loss
+    return -labels * log_p - (1 - labels) * log_not_p
 
 
 def torsion_angle_loss(
@@ -240,7 +238,7 @@ def sidechain_loss(
     )
     renamed_atom14_gt_exists = renamed_atom14_gt_exists.view(*batch_dims, -1)
 
-    fape = compute_fape(
+    return compute_fape(
         sidechain_frames,
         renamed_gt_frames,
         rigidgroups_gt_exists,
@@ -251,8 +249,6 @@ def sidechain_loss(
         length_scale=length_scale,
         eps=eps,
     )
-
-    return fape
 
 
 def fape_loss(
@@ -1227,9 +1223,7 @@ def find_structural_violations_np(
     out = find_structural_violations(batch, atom14_pred_positions, **config)
 
     to_np = lambda x: np.array(x)
-    np_out = tensor_tree_map(to_np, out)
-
-    return np_out
+    return tensor_tree_map(to_np, out)
 
 
 def extreme_ca_ca_distance_violations(
@@ -1265,8 +1259,7 @@ def extreme_ca_ca_distance_violations(
         ca_ca_distance - residue_constants.ca_ca
     ) > max_angstrom_tolerance
     mask = this_ca_mask * next_ca_mask * has_no_gap_mask
-    mean = masked_mean(mask, violations, -1)
-    return mean
+    return masked_mean(mask, violations, -1)
 
 
 def compute_violation_metrics(
@@ -1275,20 +1268,22 @@ def compute_violation_metrics(
     violations: Dict[str, torch.Tensor],
 ) -> Dict[str, torch.Tensor]:
     """Compute several metrics to assess the structural violations."""
-    ret = {}
     extreme_ca_ca_violations = extreme_ca_ca_distance_violations(
         pred_atom_positions=atom14_pred_positions,
         pred_atom_mask=batch["atom14_atom_exists"],
         residue_index=batch["residue_index"],
     )
-    ret["violations_extreme_ca_ca_distance"] = extreme_ca_ca_violations
-    ret["violations_between_residue_bond"] = masked_mean(
-        batch["seq_mask"],
-        violations["between_residues"][
-            "connections_per_residue_violation_mask"
-        ],
-        dim=-1,
-    )
+    ret = {
+        "violations_extreme_ca_ca_distance": extreme_ca_ca_violations,
+        "violations_between_residue_bond": masked_mean(
+            batch["seq_mask"],
+            violations["between_residues"][
+                "connections_per_residue_violation_mask"
+            ],
+            dim=-1,
+        ),
+    }
+
     ret["violations_between_residue_clash"] = masked_mean(
         mask=batch["seq_mask"],
         value=torch.max(
@@ -1340,14 +1335,12 @@ def violation_loss(
         + violations["within_residues"]["per_atom_loss_sum"]
     )
     l_clash = l_clash / (eps + num_atoms)
-    loss = (
+    return (
         violations["between_residues"]["bonds_c_n_loss_mean"]
         + violations["between_residues"]["angles_ca_c_n_loss_mean"]
         + violations["between_residues"]["angles_c_n_ca_loss_mean"]
         + l_clash
     )
-
-    return loss
 
 
 def compute_renamed_ground_truth(
