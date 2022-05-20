@@ -9,7 +9,7 @@ from openfold.data.tools import hhsearch
 
 def _split_a3ms(output_dir):
     for fname in os.listdir(output_dir):
-        if(not os.path.splitext(fname)[-1] == ".a3m"):
+        if os.path.splitext(fname)[-1] != ".a3m":
             continue
 
         fpath = os.path.join(output_dir, fname)
@@ -28,8 +28,8 @@ def _split_a3ms(output_dir):
                 fp.write(a3m)
 
         os.remove(fpath)
-        os.remove(fpath + ".dbtype")
-        os.remove(fpath + ".index")
+        os.remove(f"{fpath}.dbtype")
+        os.remove(f"{fpath}.index")
 
 
 def main(args):
@@ -49,11 +49,11 @@ def main(args):
 
 
     s = 0
-    while(s < len(seqs)):
+    while (s < len(seqs)):
         e = s + chunk_size
-        chunk_fasta = [el for tup in zip(names[s:e], seqs[s:e]) for el in tup] 
+        chunk_fasta = [el for tup in zip(names[s:e], seqs[s:e]) for el in tup]
         s = e
-        
+
         prot_dir = os.path.join(args.output_dir, chunk_fasta[0][1:].upper())
         if(os.path.exists(prot_dir)):
             # We've already computed this chunk
@@ -85,9 +85,7 @@ def main(args):
         )
 
         stdout, stderr = process.communicate()
-        retcode = process.wait()
-        
-        if retcode:
+        if retcode := process.wait():
             raise RuntimeError(
                 "MMseqs failed\nstdout:\n%s\n\nstderr:\n%s\n"
                 % (stdout.decode("utf-8"), stderr.decode("utf-8"))
@@ -110,8 +108,7 @@ def main(args):
             continue
         for fname in os.listdir(dpath):
             fpath = os.path.join(dpath, fname)
-            if(not "uniref" in fname or 
-                not os.path.splitext(fname)[-1] == ".a3m"):
+            if "uniref" not in fname or os.path.splitext(fname)[-1] != ".a3m":
                 continue
 
             with open(fpath, "r") as fp:

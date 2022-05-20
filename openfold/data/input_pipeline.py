@@ -86,10 +86,7 @@ def ensembled_transform_fns(common_cfg, mode_cfg, ensemble_seed):
     max_msa_clusters = pad_msa_clusters
     max_extra_msa = common_cfg.max_extra_msa
 
-    msa_seed = None
-    if(not common_cfg.resample_msa_in_recycling):
-        msa_seed = ensemble_seed
-    
+    msa_seed = None if common_cfg.resample_msa_in_recycling else ensemble_seed
     transforms.append(
         data_transforms.sample_msa(
             max_msa_clusters, 
@@ -109,8 +106,12 @@ def ensembled_transform_fns(common_cfg, mode_cfg, ensemble_seed):
         )
 
     if common_cfg.msa_cluster_features:
-        transforms.append(data_transforms.nearest_neighbor_clusters())
-        transforms.append(data_transforms.summarize_clusters())
+        transforms.extend(
+            (
+                data_transforms.nearest_neighbor_clusters(),
+                data_transforms.summarize_clusters(),
+            )
+        )
 
     # Crop after creating the cluster profiles.
     if max_extra_msa:
@@ -123,25 +124,26 @@ def ensembled_transform_fns(common_cfg, mode_cfg, ensemble_seed):
     crop_feats = dict(common_cfg.feat)
 
     if mode_cfg.fixed_size:
-        transforms.append(data_transforms.select_feat(list(crop_feats)))
-        transforms.append(
-            data_transforms.random_crop_to_size(
-                mode_cfg.crop_size,
-                mode_cfg.max_templates,
-                crop_feats,
-                mode_cfg.subsample_templates,
-                seed=ensemble_seed + 1,
+        transforms.extend(
+            (
+                data_transforms.select_feat(list(crop_feats)),
+                data_transforms.random_crop_to_size(
+                    mode_cfg.crop_size,
+                    mode_cfg.max_templates,
+                    crop_feats,
+                    mode_cfg.subsample_templates,
+                    seed=ensemble_seed + 1,
+                ),
+                data_transforms.make_fixed_size(
+                    crop_feats,
+                    pad_msa_clusters,
+                    common_cfg.max_extra_msa,
+                    mode_cfg.crop_size,
+                    mode_cfg.max_templates,
+                ),
             )
         )
-        transforms.append(
-            data_transforms.make_fixed_size(
-                crop_feats,
-                pad_msa_clusters,
-                common_cfg.max_extra_msa,
-                mode_cfg.crop_size,
-                mode_cfg.max_templates,
-            )
-        )
+
     else:
         transforms.append(
             data_transforms.crop_templates(mode_cfg.max_templates)
@@ -200,9 +202,7 @@ def compose(x, fs):
 def map_fn(fun, x):
     ensembles = [fun(elem) for elem in x]
     features = ensembles[0].keys()
-    ensembled_dict = {}
-    for feat in features:
-        ensembled_dict[feat] = torch.stack(
-            [dict_i[feat] for dict_i in ensembles], dim=-1
-        )
-    return ensembled_dict
+    return {
+        feat: torch.stack([dict_i[feat] for dict_i in ensembles], dim=-1)
+        for feat in features
+    }

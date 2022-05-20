@@ -65,7 +65,7 @@ def parse_and_align(files, alignment_runner, args):
     for f in files:
         path = os.path.join(args.input_dir, f)
         file_id = os.path.splitext(f)[0]
-        seq_group_dict = {}  
+        seq_group_dict = {}
         if(f.endswith('.cif')):
             with open(path, 'r') as fp:
                 mmcif_str = fp.read()
@@ -108,7 +108,7 @@ def parse_and_align(files, alignment_runner, args):
         else:
             continue
 
-        seq_group_tuples = [(k,v) for k,v in seq_group_dict.items()]
+        seq_group_tuples = list(seq_group_dict.items())
         run_seq_group_alignments(seq_group_tuples, alignment_runner, args)
 
 
@@ -141,15 +141,14 @@ def main(args):
         dirs = set(os.listdir(args.output_dir))
         def prot_is_done(f):
             prot_id = os.path.splitext(f)[0]
-            if(prot_id in cache):
-                chain_ids = cache[prot_id]["chain_ids"]
-                for c in chain_ids:
-                    full_name = prot_id + "_" + c
-                    if(not full_name in dirs):
-                        return False
-            else:
+            if prot_id not in cache:
                 return False
 
+            chain_ids = cache[prot_id]["chain_ids"]
+            for c in chain_ids:
+                full_name = f"{prot_id}_{c}"
+                if full_name not in dirs:
+                    return False
             return True
 
         files = [f for f in files if not prot_is_done(f)]
@@ -164,11 +163,7 @@ def main(args):
                 logging.warning(f"Node ID: {node_id}")
                 arglist = arglist[node_id::num_nodes]
 
-        t_arglist = []
-        for i in range(args.no_tasks):
-            t_arglist.append(arglist[i::args.no_tasks])
-
-        return t_arglist
+        return [arglist[i::args.no_tasks] for i in range(args.no_tasks)]
 
     if(cache is not None and "seqs" in next(iter(cache.values()))):
         seq_group_dict = {}

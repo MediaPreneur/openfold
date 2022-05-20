@@ -52,11 +52,7 @@ class AlphaFoldLRScheduler(torch.optim.lr_scheduler._LRScheduler):
         )
 
     def state_dict(self):
-        state_dict = {
-            k:v for k,v in self.__dict__.items() if k not in ["optimizer"]
-        }
-
-        return state_dict
+        return {k: v for k, v in self.__dict__.items() if k not in ["optimizer"]}
 
     def load_state_dict(self, state_dict):
         self.__dict__.update(state_dict)
@@ -79,4 +75,4 @@ class AlphaFoldLRScheduler(torch.optim.lr_scheduler._LRScheduler):
         else: # plateau
             lr = self.max_lr
 
-        return [lr for group in self.optimizer.param_groups]
+        return [lr for _ in self.optimizer.param_groups]

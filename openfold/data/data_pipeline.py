@@ -69,12 +69,14 @@ def make_sequence_features(
     sequence: str, description: str, num_res: int
 ) -> FeatureDict:
     """Construct a feature dict of sequence features."""
-    features = {}
-    features["aatype"] = residue_constants.sequence_to_onehot(
-        sequence=sequence,
-        mapping=residue_constants.restype_order_with_x,
-        map_unknown_to_x=True,
-    )
+    features = {
+        "aatype": residue_constants.sequence_to_onehot(
+            sequence=sequence,
+            mapping=residue_constants.restype_order_with_x,
+            map_unknown_to_x=True,
+        )
+    }
+
     features["between_segment_residues"] = np.zeros((num_res,), dtype=np.int32)
     features["domain_name"] = np.array(
         [description.encode("utf-8")], dtype=np.object_
@@ -96,13 +98,12 @@ def make_mmcif_features(
 
     mmcif_feats = {}
 
-    mmcif_feats.update(
-        make_sequence_features(
-            sequence=input_sequence,
-            description=description,
-            num_res=num_res,
-        )
+    mmcif_feats |= make_sequence_features(
+        sequence=input_sequence,
+        description=description,
+        num_res=num_res,
     )
+
 
     all_atom_positions, all_atom_mask = mmcif_parsing.get_atom_coords(
         mmcif_object=mmcif_object, chain_id=chain_id
@@ -138,13 +139,12 @@ def make_protein_features(
     pdb_feats = {}
     aatype = protein_object.aatype
     sequence = _aatype_to_str_sequence(aatype)
-    pdb_feats.update(
-        make_sequence_features(
-            sequence=sequence,
-            description=description,
-            num_res=len(protein_object.aatype),
-        )
+    pdb_feats |= make_sequence_features(
+        sequence=sequence,
+        description=description,
+        num_res=len(protein_object.aatype),
     )
+
 
     all_atom_positions = protein_object.atom_positions
     all_atom_mask = protein_object.atom_mask
@@ -205,8 +205,7 @@ def make_msa_features(
 
     num_res = len(msas[0][0])
     num_alignments = len(int_msa)
-    features = {}
-    features["deletion_matrix_int"] = np.array(deletion_matrix, dtype=np.int32)
+    features = {"deletion_matrix_int": np.array(deletion_matrix, dtype=np.int32)}
     features["msa"] = np.array(int_msa, dtype=np.int32)
     features["num_alignments"] = np.array(
         [num_alignments] * num_res, dtype=np.int32
@@ -276,9 +275,7 @@ class AlignmentRunner:
             },
             "hhblits": {
                 "binary": hhblits_binary_path,
-                "dbs": [
-                    bfd_database_path if not use_small_bfd else None,
-                ],
+                "dbs": [None if use_small_bfd else bfd_database_path],
             },
             "hhsearch": {
                 "binary": hhsearch_binary_path,
@@ -288,15 +285,18 @@ class AlignmentRunner:
             },
         }
 
+
         for name, dic in db_map.items():
             binary, dbs = dic["binary"], dic["dbs"]
-            if(binary is None and not all([x is None for x in dbs])):
+            if binary is None and any(x is not None for x in dbs):
                 raise ValueError(
                     f"{name} DBs provided but {name} binary is None"
                 )
 
-        if(not all([x is None for x in db_map["hhsearch"]["dbs"]])
-            and uniref90_database_path is None):
+        if (
+            any(x is not None for x in db_map["hhsearch"]["dbs"])
+            and uniref90_database_path is None
+        ):
             raise ValueError(
                 """uniref90_database_path must be specified in order to perform
                    template search"""
@@ -318,7 +318,7 @@ class AlignmentRunner:
                 database_path=uniref90_database_path,
                 n_cpu=no_cpus,
             )
-   
+
         self.jackhmmer_small_bfd_runner = None
         self.hhblits_bfd_uniclust_runner = None
         if(bfd_database_path is not None):
@@ -429,8 +429,7 @@ class DataPipeline:
 
             def read_msa(start, size):
                 fp.seek(start)
-                msa = fp.read(size).decode("utf-8")
-                return msa
+                return fp.read(size).decode("utf-8")
 
             for (name, start, size) in _alignment_index["files"]:
                 ext = os.path.splitext(name)[-1]
@@ -513,7 +512,7 @@ class DataPipeline:
         _alignment_index: Optional[str] = None
     ) -> Mapping[str, Any]:
         msa_data = self._parse_msa_data(alignment_dir, _alignment_index)
-       
+
         if(len(msa_data) == 0):
             if(input_sequence is None):
                 raise ValueError(
@@ -531,12 +530,10 @@ class DataPipeline:
             (v["msa"], v["deletion_matrix"]) for v in msa_data.values()
         ])
 
-        msa_features = make_msa_features(
+        return make_msa_features(
             msas=msas,
             deletion_matrices=deletion_matrices,
         )
-
-        return msa_features
 
     def process_fasta(
         self,
@@ -624,21 +621,20 @@ class DataPipeline:
         """
             Assembles features for a protein in a PDB file.
         """
-        if(_structure_index is not None):
+        if (_structure_index is not None):
             db_dir = os.path.dirname(pdb_path)
             db = _structure_index["db"]
             db_path = os.path.join(db_dir, db)
-            fp = open(db_path, "rb")
-            _, offset, length = _structure_index["files"][0]
-            fp.seek(offset)
-            pdb_str = fp.read(length).decode("utf-8")
-            fp.close()
+            with open(db_path, "rb") as fp:
+                _, offset, length = _structure_index["files"][0]
+                fp.seek(offset)
+                pdb_str = fp.read(length).decode("utf-8")
         else:
             with open(pdb_path, 'r') as f:
                 pdb_str = f.read()
 
         protein_object = protein.from_pdb_string(pdb_str, chain_id)
-        input_sequence = _aatype_to_str_sequence(protein_object.aatype) 
+        input_sequence = _aatype_to_str_sequence(protein_object.aatype)
         description = os.path.splitext(os.path.basename(pdb_path))[0].upper()
         pdb_feats = make_pdb_features(
             protein_object, 

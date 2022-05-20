@@ -63,9 +63,9 @@ def _process_translations_dict(d, top_layer=True):
                     v, top_layer=False
                 ).items()
             }
-            flat.update(sub_flat)
+            flat |= sub_flat
         else:
-            k = "/" + k if not top_layer else k
+            k = k if top_layer else f"/{k}"
             flat[k] = v
 
     return flat
@@ -277,27 +277,23 @@ def import_jax_weights_(model, npz_path, version="model_1"):
             col_att_name = "msa_column_attention"
             msa_col_att_params = MSAColAttParams(b.msa_att_col)
 
-        d = {
+        return {
             "msa_row_attention_with_pair_bias": MSAAttPairBiasParams(
                 b.msa_att_row
             ),
             col_att_name: msa_col_att_params,
             "msa_transition": MSATransitionParams(b.core.msa_transition),
-            "outer_product_mean": 
-                OuterProductMeanParams(b.core.outer_product_mean),
-            "triangle_multiplication_outgoing": 
-                TriMulOutParams(b.core.tri_mul_out),
-            "triangle_multiplication_incoming": 
-                TriMulInParams(b.core.tri_mul_in),
-            "triangle_attention_starting_node": 
-                TriAttParams(b.core.tri_att_start),
-            "triangle_attention_ending_node": 
-                TriAttParams(b.core.tri_att_end),
-            "pair_transition": 
-                PairTransitionParams(b.core.pair_transition),
+            "outer_product_mean": OuterProductMeanParams(
+                b.core.outer_product_mean
+            ),
+            "triangle_multiplication_outgoing": TriMulOutParams(
+                b.core.tri_mul_out
+            ),
+            "triangle_multiplication_incoming": TriMulInParams(b.core.tri_mul_in),
+            "triangle_attention_starting_node": TriAttParams(b.core.tri_att_start),
+            "triangle_attention_ending_node": TriAttParams(b.core.tri_att_end),
+            "pair_transition": PairTransitionParams(b.core.pair_transition),
         }
-
-        return d
 
     ExtraMSABlockParams = partial(EvoformerBlockParams, is_extra_msa=True)
 

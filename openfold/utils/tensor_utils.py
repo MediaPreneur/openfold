@@ -49,11 +49,7 @@ def dict_multimap(fn, dicts):
     new_dict = {}
     for k, v in first.items():
         all_v = [d[k] for d in dicts]
-        if type(v) is dict:
-            new_dict[k] = dict_multimap(fn, all_v)
-        else:
-            new_dict[k] = fn(all_v)
-
+        new_dict[k] = dict_multimap(fn, all_v) if type(v) is dict else fn(all_v)
     return new_dict
 
 
@@ -81,14 +77,12 @@ def batched_gather(data, inds, dim=0, no_batch_dims=0):
 
 # With tree_map, a poor man's JAX tree_map
 def dict_map(fn, dic, leaf_type):
-    new_dict = {}
-    for k, v in dic.items():
-        if type(v) is dict:
-            new_dict[k] = dict_map(fn, v, leaf_type)
-        else:
-            new_dict[k] = tree_map(fn, v, leaf_type)
-
-    return new_dict
+    return {
+        k: dict_map(fn, v, leaf_type)
+        if type(v) is dict
+        else tree_map(fn, v, leaf_type)
+        for k, v in dic.items()
+    }
 
 
 def tree_map(fn, tree, leaf_type):
@@ -97,7 +91,7 @@ def tree_map(fn, tree, leaf_type):
     elif isinstance(tree, list):
         return [tree_map(fn, x, leaf_type) for x in tree]
     elif isinstance(tree, tuple):
-        return tuple([tree_map(fn, x, leaf_type) for x in tree])
+        return tuple(tree_map(fn, x, leaf_type) for x in tree)
     elif isinstance(tree, leaf_type):
         return fn(tree)
     else:
@@ -335,8 +329,8 @@ def chunk_layer(
 
     def _prep_inputs(t):
         # TODO: make this more memory efficient. This sucks
-        if(not low_mem):
-            if not sum(t.shape[:no_batch_dims]) == no_batch_dims:
+        if (not low_mem):
+            if sum(t.shape[:no_batch_dims]) != no_batch_dims:
                 t = t.expand(orig_batch_dims + t.shape[no_batch_dims:])
             t = t.reshape(-1, *t.shape[no_batch_dims:])
         else:

@@ -570,14 +570,12 @@ class TestLoss(unittest.TestCase):
             ret = {
                 "loss": np.array(0.0).astype(np.float32),
             }
-            value = {}
-            value[
-                "violations"
-            ] = alphafold.model.folding.find_structural_violations(
-                batch,
-                atom14_pred_pos,
-                c_viol,
-            )
+            value = {
+                "violations": alphafold.model.folding.find_structural_violations(
+                    batch, atom14_pred_pos, c_viol
+                )
+            }
+
             alphafold.model.folding.structural_violation_loss(
                 ret,
                 batch,
@@ -734,22 +732,22 @@ class TestLoss(unittest.TestCase):
                     batch["all_atom_mask"],
                 ),
             }
-            v = {}
-            v["sidechains"] = {}
-            v["sidechains"][
-                "frames"
-            ] = alphafold.model.r3.rigids_from_tensor4x4(
-                value["sidechains"]["frames"]
-            )
+            v = {
+                "sidechains": {
+                    "frames": alphafold.model.r3.rigids_from_tensor4x4(
+                        value["sidechains"]["frames"]
+                    )
+                }
+            }
+
             v["sidechains"]["atom_pos"] = alphafold.model.r3.vecs_from_tensor(
                 value["sidechains"]["atom_pos"]
             )
-            v.update(
-                alphafold.model.folding.compute_renamed_ground_truth(
-                    batch,
-                    atom14_pred_positions,
-                )
+            v |= alphafold.model.folding.compute_renamed_ground_truth(
+                batch,
+                atom14_pred_positions,
             )
+
             value = v
 
             ret = alphafold.model.folding.sidechain_loss(batch, value, c_sm)
@@ -825,7 +823,7 @@ class TestLoss(unittest.TestCase):
                 c_tm, config.model.global_config
             )
             v = {}
-            v.update(value)
+            v |= value
             v["predicted_aligned_error"] = head(representations, batch, False)
             return head.loss(v, batch)["loss"]
 

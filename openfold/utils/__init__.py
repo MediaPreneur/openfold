@@ -10,7 +10,7 @@ __all__ = [
     for f in _files
     if os.path.isfile(f) and not f.endswith("__init__.py")
 ] + ["kernel"]
-_modules = [(m, importlib.import_module("." + m, __name__)) for m in __all__]
+_modules = [(m, importlib.import_module(f".{m}", __name__)) for m in __all__]
 for _m in _modules:
     globals()[_m[0]] = _m[1]
 

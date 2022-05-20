@@ -170,15 +170,13 @@ class Jackhmmer:
             with open(sto_path) as f:
                 sto = f.read()
 
-        raw_output = dict(
+        return dict(
             sto=sto,
             tbl=tbl,
             stderr=stderr,
             n_iter=self.n_iter,
             e_value=self.e_value,
         )
-
-        return raw_output
 
     def query(self, input_fasta_path: str) -> Sequence[Mapping[str, Any]]:
         """Queries the database using Jackhmmer."""

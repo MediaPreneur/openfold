@@ -151,24 +151,23 @@ class Linear(nn.Linear):
 
         if init_fn is not None:
             init_fn(self.weight, self.bias)
+        elif init == "default":
+            lecun_normal_init_(self.weight)
+        elif init == "final":
+            final_init_(self.weight)
+        elif init == "gating":
+            gating_init_(self.weight)
+            if bias:
+                with torch.no_grad():
+                    self.bias.fill_(1.0)
+        elif init == "glorot":
+            glorot_uniform_init_(self.weight)
+        elif init == "normal":
+            normal_init_(self.weight)
+        elif init == "relu":
+            he_normal_init_(self.weight)
         else:
-            if init == "default":
-                lecun_normal_init_(self.weight)
-            elif init == "relu":
-                he_normal_init_(self.weight)
-            elif init == "glorot":
-                glorot_uniform_init_(self.weight)
-            elif init == "gating":
-                gating_init_(self.weight)
-                if bias:
-                    with torch.no_grad():
-                        self.bias.fill_(1.0)
-            elif init == "normal":
-                normal_init_(self.weight)
-            elif init == "final":
-                final_init_(self.weight)
-            else:
-                raise ValueError("Invalid init string.")
+            raise ValueError("Invalid init string.")
 
 
 class LayerNorm(nn.Module):
@@ -250,8 +249,7 @@ def _attention_chunked_trainable(
 
     def _checkpointable_attention(q, k, v, b1, b2):
         bs = [b for b in [b1, b2] if b is not None]
-        a = _attention(q, k, v, bs)
-        return a
+        return _attention(q, k, v, bs)
 
     o_chunks = []
     checkpoint_fn = get_checkpoint_fn()
@@ -450,25 +448,22 @@ class Attention(nn.Module):
         q, k, v = self._prep_qkv(q_x, kv_x)
 
         # [*, Q, H, C_hidden]
-        if(use_memory_efficient_kernel):
+        if use_memory_efficient_kernel:
             if(len(biases) > 2):
                 raise ValueError(
                     "If use_memory_efficient_kernel is True, you may only "
                     "provide up to two bias terms"
                 )
             o = attention_core(q, k, v, *((biases + [None] * 2)[:2]))
-            o = o.transpose(-2, -3)
-        elif(use_lma):
+        elif use_lma:
             biases = [
                 b.expand(b.shape[:-2] + (q_x.shape[-2],) + (kv_x.shape[-2],)) 
                 for b in biases
             ]
             o = _lma(q, k, v, biases, q_chunk_size, kv_chunk_size)
-            o = o.transpose(-2, -3)
         else:
             o = _attention(q, k, v, biases)
-            o = o.transpose(-2, -3)
-
+        o = o.transpose(-2, -3)
         o = self._wrap_up(o, q_x)
 
         return o

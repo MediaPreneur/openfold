@@ -54,8 +54,7 @@ class TestPairTransition(unittest.TestCase):
                 config.model.global_config,
                 name="pair_transition",
             )
-            act = pt(act=pair_act, mask=pair_mask)
-            return act
+            return pt(act=pair_act, mask=pair_mask)
 
         f = hk.transform(run_pair_transition)
 

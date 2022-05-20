@@ -106,13 +106,12 @@ def identity_trans(
     device: Optional[torch.device] = None, 
     requires_grad: bool = True,
 ) -> torch.Tensor:
-    trans = torch.zeros(
-        (*batch_dims, 3), 
-        dtype=dtype, 
-        device=device, 
-        requires_grad=requires_grad
+    return torch.zeros(
+        (*batch_dims, 3),
+        dtype=dtype,
+        device=device,
+        requires_grad=requires_grad,
     )
-    return trans
 
 
 def identity_quats(
@@ -261,8 +260,7 @@ def invert_rot_mat(rot_mat: torch.Tensor):
 def invert_quat(quat: torch.Tensor):
     quat_prime = quat.clone()
     quat_prime[..., 1:] *= -1
-    inv = quat_prime / torch.sum(quat ** 2, dim=-1, keepdim=True)
-    return inv
+    return quat_prime / torch.sum(quat ** 2, dim=-1, keepdim=True)
 
 
 class Rotation:
@@ -431,12 +429,10 @@ class Rotation:
                 The virtual shape of the rotation object
         """
         s = None
-        if(self._quats is not None):
-            s = self._quats.shape[:-1]
+        if (self._quats is not None):
+            return self._quats.shape[:-1]
         else:
-            s = self._rot_mats.shape[:-2]
-
-        return s
+            return self._rot_mats.shape[:-2]
 
     @property
     def dtype(self) -> torch.dtype:
@@ -951,8 +947,7 @@ class Rigid:
             Returns:
                 The shape of the transformation
         """
-        s = self._trans.shape[:-1]
-        return s
+        return self._trans.shape[:-1]
 
     @property
     def device(self) -> torch.device:

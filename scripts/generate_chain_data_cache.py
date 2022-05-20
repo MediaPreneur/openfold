@@ -20,7 +20,7 @@ def parse_file(
     chain_cluster_size_dict
 ):
     file_id, ext = os.path.splitext(f)
-    if(ext == ".cif"):
+    if (ext == ".cif"):
         with open(os.path.join(args.data_dir, f), "r") as fp:
             mmcif_string = fp.read()
         mmcif = parse(file_id=file_id, mmcif_string=mmcif_string)
@@ -38,22 +38,24 @@ def parse_file(
             local_data["release_date"] = mmcif.header["release_date"]
             local_data["seq"] = seq
             local_data["resolution"] = mmcif.header["resolution"]
-           
+
             if(chain_cluster_size_dict is not None):
                 cluster_size = chain_cluster_size_dict.get(
                     full_name.upper(), -1
                 )
                 local_data["cluster_size"] = cluster_size
-    elif(ext == ".pdb"):
+    elif ext == ".pdb":
         with open(os.path.join(args.data_dir, f), "r") as fp:
             pdb_string = fp.read()
-          
+
         protein_object = protein.from_pdb_string(pdb_string, None)
 
-        chain_dict = {} 
-        chain_dict["seq"] = residue_constants.aatype_to_str_sequence(
-            protein_object.aatype,
-        )
+        chain_dict = {
+            "seq": residue_constants.aatype_to_str_sequence(
+                protein_object.aatype
+            )
+        }
+
         local_data["resolution"] = 0.
 
         cluster_size = chain_cluster_size_dict.get(file_id.upper(), -1)
@@ -81,7 +83,7 @@ def main(args):
             for chain_id in chain_ids:
                 chain_id = chain_id.upper()
                 chain_cluster_size_dict[chain_id] = cluster_len
-   
+
     accepted_exts = [".cif", ".pdb"]
     files = list(os.listdir(args.data_dir))
     files = [f for f in files if os.path.splitext(f)[-1] in accepted_exts]
@@ -94,7 +96,7 @@ def main(args):
     with Pool(processes=args.no_workers) as p:
         with tqdm(total=len(files)) as pbar:
             for d in p.imap_unordered(fn, files, chunksize=args.chunksize):
-                data.update(d)
+                data |= d
                 pbar.update()
 
     with open(args.output_path, "w") as fp:

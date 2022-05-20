@@ -401,10 +401,7 @@ class BackboneUpdate(nn.Module):
         Returns:
             [*, N_res, 6] update vector 
         """
-        # [*, 6]
-        update = self.linear(s)
-
-        return update 
+        return self.linear(s) 
 
 
 class StructureModuleTransitionLayer(nn.Module):
@@ -614,7 +611,7 @@ class StructureModule(nn.Module):
             fmt="quat",
         )
         outputs = []
-        for i in range(self.no_blocks):
+        for _ in range(self.no_blocks):
             # [*, N, C_s]
             s = s + self.ipa(s, z, rigids, mask)
             s = self.ipa_dropout(s)
@@ -654,7 +651,7 @@ class StructureModule(nn.Module):
             )
 
             scaled_rigids = rigids.scale_translation(self.trans_scale_factor)
-            
+
             preds = {
                 "frames": scaled_rigids.to_tensor_7(),
                 "sidechain_frames": all_frames_to_global.to_tensor_4x4(),

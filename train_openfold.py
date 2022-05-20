@@ -151,12 +151,10 @@ class OpenFoldWrapper(pl.LightningModule):
         outputs, 
         superimposition_metrics=False
     ):
-        metrics = {}
-        
         gt_coords = batch["all_atom_positions"]
         pred_coords = outputs["final_atom_positions"]
         all_atom_mask = batch["all_atom_mask"]
-    
+
         # This is super janky for superimposition. Fix later
         gt_coords_masked = gt_coords * all_atom_mask[..., None]
         pred_coords_masked = pred_coords * all_atom_mask[..., None]
@@ -164,7 +162,7 @@ class OpenFoldWrapper(pl.LightningModule):
         gt_coords_masked_ca = gt_coords_masked[..., ca_pos, :]
         pred_coords_masked_ca = pred_coords_masked[..., ca_pos, :]
         all_atom_mask_ca = all_atom_mask[..., ca_pos]
-    
+
         lddt_ca_score = lddt_ca(
             pred_coords,
             gt_coords,
@@ -172,17 +170,16 @@ class OpenFoldWrapper(pl.LightningModule):
             eps=self.config.globals.eps,
             per_residue=False,
         )
-   
-        metrics["lddt_ca"] = lddt_ca_score
-   
+
+        metrics = {"lddt_ca": lddt_ca_score}
         drmsd_ca_score = drmsd(
             pred_coords_masked_ca,
             gt_coords_masked_ca,
             mask=all_atom_mask_ca, # still required here to compute n
         )
-   
+
         metrics["drmsd_ca"] = drmsd_ca_score
-    
+
         if(superimposition_metrics):
             superimposed_pred, alignment_rmsd = superimpose(
                 gt_coords_masked_ca, pred_coords_masked_ca, all_atom_mask_ca,
@@ -197,7 +194,7 @@ class OpenFoldWrapper(pl.LightningModule):
             metrics["alignment_rmsd"] = alignment_rmsd
             metrics["gdt_ts"] = gdt_ts_score
             metrics["gdt_ha"] = gdt_ha_score
-    
+
         return metrics
 
     def configure_optimizers(self, 
@@ -239,14 +236,14 @@ def main(args):
         train=True, 
         low_prec=(args.precision == "16")
     ) 
-    
+
     model_module = OpenFoldWrapper(config)
     if(args.resume_from_ckpt and args.resume_model_weights_only):
         sd = get_fp32_state_dict_from_zero_checkpoint(args.resume_from_ckpt)
         sd = {k[len("module."):]:v for k,v in sd.items()}
         model_module.load_state_dict(sd)
         logging.info("Successfully loaded model weights...")
- 
+
     # TorchScript components of the model
     if(args.script_modules):
         script_preset_(model_module)
@@ -260,7 +257,7 @@ def main(args):
 
     data_module.prepare_data()
     data_module.setup()
-    
+
     callbacks = []
     if(args.checkpoint_every_epoch):
         mc = ModelCheckpoint(
@@ -316,7 +313,7 @@ def main(args):
         strategy = DDPPlugin(find_unused_parameters=False)
     else:
         strategy = None
- 
+
     if(args.wandb):
         freeze_path = f"{wdb_logger.experiment.dir}/package_versions.txt"
         os.system(f"{sys.executable} -m pip freeze > {freeze_path}")
@@ -330,11 +327,7 @@ def main(args):
         logger=loggers,
     )
 
-    if(args.resume_model_weights_only):
-        ckpt_path = None
-    else:
-        ckpt_path = args.resume_from_ckpt
-
+    ckpt_path = None if args.resume_model_weights_only else args.resume_from_ckpt
     trainer.fit(
         model_module, 
         datamodule=data_module,
@@ -344,9 +337,9 @@ def main(args):
 
 def bool_type(bool_str: str):
     bool_str_lower = bool_str.lower()
-    if bool_str_lower in ('false', 'f', 'no', 'n', '0'):
+    if bool_str_lower in {'false', 'f', 'no', 'n', '0'}:
         return False
-    elif bool_str_lower in ('true', 't', 'yes', 'y', '1'):
+    elif bool_str_lower in {'true', 't', 'yes', 'y', '1'}:
         return True
     else:
         raise ValueError(f'Cannot interpret {bool_str} as bool')

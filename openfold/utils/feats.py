@@ -72,7 +72,7 @@ def build_template_angle_feat(template_feats):
         "template_alt_torsion_angles_sin_cos"
     ]
     torsion_angles_mask = template_feats["template_torsion_angles_mask"]
-    template_angle_feat = torch.cat(
+    return torch.cat(
         [
             nn.functional.one_hot(template_aatype, 22),
             torsion_angles_sin_cos.reshape(
@@ -85,8 +85,6 @@ def build_template_angle_feat(template_feats):
         ],
         dim=-1,
     )
-
-    return template_angle_feat
 
 
 def build_template_pair_feat(
@@ -230,9 +228,7 @@ def torsion_angles_to_frames(
         dim=-1,
     )
 
-    all_frames_to_global = r[..., None].compose(all_frames_to_bb)
-
-    return all_frames_to_global
+    return r[..., None].compose(all_frames_to_bb)
 
 
 def frames_and_literature_positions_to_atom14_pos(

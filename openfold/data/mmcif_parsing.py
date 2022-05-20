@@ -143,9 +143,10 @@ def mmcif_loop_to_list(
             cols.append(key)
             data.append(value)
 
-    assert all([len(xs) == len(data[0]) for xs in data]), (
-        "mmCIF error: Not all loops are the same length: %s" % cols
-    )
+    assert all(
+        len(xs) == len(data[0]) for xs in data
+    ), f"mmCIF error: Not all loops are the same length: {cols}"
+
 
     return [dict(zip(cols, xs)) for xs in zip(*data)]
 
@@ -214,9 +215,10 @@ def parse(
                 None, {(file_id, ""): "No protein chains found in this file."}
             )
         seq_start_num = {
-            chain_id: min([monomer.num for monomer in seq])
+            chain_id: min(monomer.num for monomer in seq)
             for chain_id, seq in valid_chains.items()
         }
+
 
         # Loop over the atoms for which we have coordinates. Populate two mappings:
         # -mmcif_to_author_chain_id (maps internal mmCIF chain ids to chain ids used
@@ -234,13 +236,10 @@ def parse(
             if atom.mmcif_chain_id in valid_chains:
                 hetflag = " "
                 if atom.hetatm_atom == "HETATM":
-                    # Water atoms are assigned a special hetflag of W in Biopython. We
-                    # need to do the same, so that this hetflag can be used to fetch
-                    # a residue from the Biopython structure by id.
                     if atom.residue_name in ("HOH", "WAT"):
                         hetflag = "W"
                     else:
-                        hetflag = "H_" + atom.residue_name
+                        hetflag = f"H_{atom.residue_name}"
                 insertion_code = atom.insertion_code
                 if not _is_set(atom.insertion_code):
                     insertion_code = " "
@@ -319,12 +318,12 @@ def get_release_date(parsed_info: MmCIFDict) -> str:
 
 def _get_header(parsed_info: MmCIFDict) -> PdbHeader:
     """Returns a basic header containing method, release date and resolution."""
-    header = {}
-
     experiments = mmcif_loop_to_list("_exptl.", parsed_info)
-    header["structure_method"] = ",".join(
-        [experiment["_exptl.method"].lower() for experiment in experiments]
-    )
+    header = {
+        "structure_method": ",".join(
+            [experiment["_exptl.method"].lower() for experiment in experiments]
+        )
+    }
 
     # Note: The release_date here corresponds to the oldest revision. We prefer to
     # use this for dataset filtering over the deposition_date.
@@ -414,10 +413,8 @@ def _get_protein_chains(
 
         # Reject polymers without any peptide-like components, such as DNA/RNA.
         if any(
-            [
-                "peptide" in chem_comps[monomer.id]["_chem_comp.type"]
-                for monomer in seq_info
-            ]
+            "peptide" in chem_comps[monomer.id]["_chem_comp.type"]
+            for monomer in seq_info
         ):
             for chain_id in chain_ids:
                 valid_chains[chain_id] = seq_info

@@ -79,7 +79,7 @@ class HHBlits:
         self.databases = databases
 
         for database_path in self.databases:
-            if not glob.glob(database_path + "_*"):
+            if not glob.glob(f"{database_path}_*"):
                 logging.error(
                     "Could not find HHBlits database %s", database_path
                 )
@@ -106,8 +106,7 @@ class HHBlits:
 
             db_cmd = []
             for db_path in self.databases:
-                db_cmd.append("-d")
-                db_cmd.append(db_path)
+                db_cmd.extend(("-d", db_path))
             cmd = [
                 self.binary_path,
                 "-i",
@@ -165,11 +164,10 @@ class HHBlits:
             with open(a3m_path) as f:
                 a3m = f.read()
 
-        raw_output = dict(
+        return dict(
             a3m=a3m,
             output=stdout,
             stderr=stderr,
             n_iter=self.n_iter,
             e_value=self.e_value,
         )
-        return raw_output

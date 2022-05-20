@@ -50,7 +50,7 @@ sched.add_argument(
             and WarmupDecayLR". Documentation for each can be found here: 
             deepspeed.readthedocs.io/en/latest/schedulers.html'''
 )
-                    
+
 range_test = sched.add_argument_group("LRRangeTest")
 range_test.add_argument(
     "--lr_range_test_min_lr", type=float, default=1e-04
@@ -200,31 +200,26 @@ p.add_argument("--detailed_flops_profile", action="store_true",
                 default=False,
                help='''Whether the flops_profiler should be detailed. Has
                        no effect unless --flops_profiler is given''')
-        
+
 args = parser.parse_args()
 
 d = {}
 
 # Optimizer settings
-if(args.optimizer is not None):
-    optimizer = {}
-    optimizer["type"] = args.optimizer
-    params = {}
-    params["lr"] = args.lr
-    params["eps"] = args.eps
-    
+if (args.optimizer is not None):
+    optimizer = {"type": args.optimizer}
+    params = {"lr": args.lr, "eps": args.eps}
     if(args.optimizer == "OneBitAdam"):
         params["freeze_step"] = args.freeze_step
         params["cuda_aware"] = args.cuda_aware
         params["comm_backend_name"] = args.comm_backend_name
-    
+
     optimizer["params"] = params
     d["optimizer"] = optimizer
 
 # LR scheduler
-if(args.scheduler is not None):
-    scheduler = {}
-    scheduler["type"] = args.scheduler
+if (args.scheduler is not None):
+    scheduler = {"type": args.scheduler}
     params = {}
     if(args.scheduler == "LRRangeTest"):
         params["lr_range_test_min_lr"] = args.lr_range_test_min_lr
@@ -261,51 +256,50 @@ if(args.scheduler is not None):
 if(sum([args.amp, args.fp16, args.bfloat16]) > 1):
     raise ValueError("Only one of --fp16, --amp, or --bfloat16 can be enabled")
 
-if(args.amp):
-    amp = {}
-    amp["enabled"] = True
-    amp["pin_memory"] = args.opt_level
+if args.amp:
+    amp = {"enabled": True, "pin_memory": args.opt_level}
     d["amp"] = amp
-elif(args.fp16):
-    fp16 = {}
-    fp16["enabled"] = args.fp16
+elif args.fp16:
+    fp16 = {"enabled": args.fp16}
     d["fp16"] = fp16
-elif(args.bfloat16):
-    bfloat16 = {}
-    bfloat16["enabled"] = args.bfloat16
+elif args.bfloat16:
+    bfloat16 = {"enabled": args.bfloat16}
     d["bfloat16"] = bfloat16
 
 # Activation checkpointing
-ac = {}
-ac["partition_activations"] = args.partition_activations
-ac["cpu_checkpointing"] = args.cpu_checkpointing
-ac["profile"] = args.profile
+ac = {
+    "partition_activations": args.partition_activations,
+    "cpu_checkpointing": args.cpu_checkpointing,
+    "profile": args.profile,
+}
+
 d["activation_checkpointing"] = ac
 
 # ZeRO optimization
-zo = {}
-zo["stage"] = args.zero_stage
-zo["allgather_partitions"] = args.allgather_partitions
-zo["allgather_bucket_size"] = args.allgather_bucket_size
-zo["reduce_bucket_size"] = args.reduce_bucket_size
-zo["overlap_comm"] = args.overlap_comm
-zo["reduce_scatter"] = args.reduce_scatter
+zo = {
+    "stage": args.zero_stage,
+    "allgather_partitions": args.allgather_partitions,
+    "allgather_bucket_size": args.allgather_bucket_size,
+    "reduce_bucket_size": args.reduce_bucket_size,
+    "overlap_comm": args.overlap_comm,
+    "reduce_scatter": args.reduce_scatter,
+}
 
-if(args.offload_optimizer):
-    oo = {}
-    oo["device"] = "cpu"
-    oo["pin_memory"] = args.pin_memory
+if args.offload_optimizer:
+    oo = {"device": "cpu", "pin_memory": args.pin_memory}
     zo["offload_optimizer"] = oo
 
 d["zero_optimization"] = zo
 
 # Flops Profiler
-flops_profiler = {}
-flops_profiler["enabled"] = args.flops_profiler
-flops_profiler["profile_step"] = args.profile_step
-flops_profiler["module_depth"] = args.module_depth
-flops_profiler["top_modules"] = args.top_modules
-flops_profiler["detailed"] = args.detailed_flops_profile
+flops_profiler = {
+    "enabled": args.flops_profiler,
+    "profile_step": args.profile_step,
+    "module_depth": args.module_depth,
+    "top_modules": args.top_modules,
+    "detailed": args.detailed_flops_profile,
+}
+
 d ["flops_profiler"] = flops_profiler
 
 if(args.gradient_clipping):

@@ -12,10 +12,10 @@ def main(args):
         basename, ext = os.path.splitext(fname)
         basename = basename.upper()
         fpath = os.path.join(args.data_dir, fname)
-        if(ext == ".cif"):
+        if (ext == ".cif"):
             with open(fpath, 'r') as fp:
                 mmcif_str = fp.read()
-            
+
             mmcif = mmcif_parsing.parse(
                 file_id=basename, mmcif_string=mmcif_str
             )
@@ -29,9 +29,8 @@ def main(args):
             mmcif = mmcif.mmcif_object
             for chain, seq in mmcif.chain_to_seqres.items():
                 chain_id = '_'.join([basename, chain])
-                fasta.append(f">{chain_id}")
-                fasta.append(seq)
-        elif(ext == ".core"):
+                fasta.extend((f">{chain_id}", seq))
+        elif ext == ".core":
             with open(fpath, 'r') as fp:
                 core_str = fp.read()
 
@@ -41,10 +40,7 @@ def main(args):
                 residue_constants.restypes_with_x[aatype[i]] 
                 for i in range(len(aatype))
             ])
-            fasta.append(f">{basename}")
-            fasta.append(seq)
-            
-
+            fasta.extend((f">{basename}", seq))
     with open(args.output_path, "w") as fp:
         fp.write('\n'.join(fasta))
 

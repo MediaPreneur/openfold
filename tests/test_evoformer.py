@@ -233,8 +233,7 @@ class TestMSATransition(unittest.TestCase):
                 config.model.global_config,
                 name="msa_transition",
             )
-            act = msa_trans(act=msa_act, mask=msa_mask)
-            return act
+            return msa_trans(act=msa_act, mask=msa_mask)
 
         f = hk.transform(run_msa_transition)
 

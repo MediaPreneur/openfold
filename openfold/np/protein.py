@@ -140,14 +140,14 @@ def from_proteinnet_string(proteinnet_str: str) -> Protein:
     tags = [
         tag.strip() for tag in re.split(tag_re, proteinnet_str) if len(tag) > 0
     ]
-    groups = zip(tags[0::2], [l.split('\n') for l in tags[1::2]])
-   
+    groups = zip(tags[::2], [l.split('\n') for l in tags[1::2]])
+
     atoms = ['N', 'CA', 'C']
     aatype = None
     atom_positions = None
     atom_mask = None
     for g in groups:
-        if("[PRIMARY]" == g[0]):
+        if g[0] == "[PRIMARY]":
             seq = g[1][0].strip()
             for i in range(len(seq)):
                 if(seq[i] not in residue_constants.restypes):
@@ -157,10 +157,8 @@ def from_proteinnet_string(proteinnet_str: str) -> Protein:
                     res_symbol, residue_constants.restype_num
                 ) for res_symbol in seq
             ])
-        elif("[TERTIARY]" == g[0]):
-            tertiary = []
-            for axis in range(3):
-                tertiary.append(list(map(float, g[1][axis].split())))
+        elif g[0] == "[TERTIARY]":
+            tertiary = [list(map(float, g[1][axis].split())) for axis in range(3)]
             tertiary_np = np.array(tertiary)
             atom_positions = np.zeros(
                 (len(tertiary[0])//3, residue_constants.atom_type_num, 3)
@@ -170,12 +168,12 @@ def from_proteinnet_string(proteinnet_str: str) -> Protein:
                     np.transpose(tertiary_np[:, i::3])
                 )
             atom_positions *= PICO_TO_ANGSTROM
-        elif("[MASK]" == g[0]):
+        elif g[0] == "[MASK]":
             mask = np.array(list(map({'-': 0, '+': 1}.get, g[1][0].strip())))
             atom_mask = np.zeros(
                 (len(mask), residue_constants.atom_type_num,)
             ).astype(np.float32)
-            for i, atom in enumerate(atoms):
+            for atom in atoms:
                 atom_mask[:, residue_constants.atom_order[atom]] = 1
             atom_mask *= mask[..., None]
 
@@ -199,20 +197,17 @@ def to_pdb(prot: Protein) -> str:
     """
     restypes = residue_constants.restypes + ["X"]
     res_1to3 = lambda r: residue_constants.restype_1to3.get(restypes[r], "UNK")
-    atom_types = residue_constants.atom_types
-
-    pdb_lines = []
-
     atom_mask = prot.atom_mask
     aatype = prot.aatype
     atom_positions = prot.atom_positions
+    atom_types = residue_constants.atom_types
     residue_index = prot.residue_index.astype(np.int32)
     b_factors = prot.b_factors
 
     if np.any(aatype > residue_constants.restype_num):
         raise ValueError("Invalid aatypes.")
 
-    pdb_lines.append("MODEL     1")
+    pdb_lines = ["MODEL     1"]
     atom_index = 1
     chain_id = "A"
     # Add all atom sites.
@@ -251,11 +246,7 @@ def to_pdb(prot: Protein) -> str:
         f"{chain_end:<6}{atom_index:>5}      {res_1to3(aatype[-1]):>3} "
         f"{chain_id:>1}{residue_index[-1]:>4}"
     )
-    pdb_lines.append(chain_termination_line)
-    pdb_lines.append("ENDMDL")
-
-    pdb_lines.append("END")
-    pdb_lines.append("")
+    pdb_lines.extend((chain_termination_line, "ENDMDL", "END", ""))
     return "\n".join(pdb_lines)
 
 

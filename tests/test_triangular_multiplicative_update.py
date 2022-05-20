@@ -64,8 +64,7 @@ class TestTriangularMultiplicativeUpdate(unittest.TestCase):
                 config.model.global_config,
                 name=name,
             )
-            act = tri_mul(act=pair_act, mask=pair_mask)
-            return act
+            return tri_mul(act=pair_act, mask=pair_mask)
 
         f = hk.transform(run_tri_mul)
 

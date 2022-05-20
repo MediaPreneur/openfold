@@ -144,14 +144,12 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
 
         mmcif_object = mmcif_object.mmcif_object
 
-        data = self.data_pipeline.process_mmcif(
+        return self.data_pipeline.process_mmcif(
             mmcif=mmcif_object,
             alignment_dir=alignment_dir,
             chain_id=chain_id,
-            _alignment_index=_alignment_index
+            _alignment_index=_alignment_index,
         )
-
-        return data
 
     def chain_id_to_idx(self, chain_id):
         return self._chain_id_to_idx_dict[chain_id]
@@ -168,7 +166,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
             alignment_dir = self.alignment_dir
             _alignment_index = self._alignment_index[name]
 
-        if(self.mode == 'train' or self.mode == 'eval'):
+        if self.mode in ['train', 'eval']:
             spl = name.rsplit('_', 1)
             if(len(spl) == 2):
                 file_id, chain_id = spl
@@ -178,17 +176,16 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
 
             path = os.path.join(self.data_dir, file_id)
             structure_index_entry = None
-            if(self._structure_index is not None):
+            if (self._structure_index is not None):
                 structure_index_entry = self._structure_index[name]
                 assert(len(structure_index_entry["files"]) == 1)
                 filename, _, _ = structure_index_entry["files"][0]
                 ext = os.path.splitext(filename)[1]
             else:
-                ext = None
-                for e in self.supported_exts:
-                    if(os.path.exists(path + e)):
-                        ext = e
-                        break
+                ext = next(
+                    (e for e in self.supported_exts if (os.path.exists(path + e))),
+                    None,
+                )
 
                 if(ext is None):
                     raise ValueError("Invalid file type")
@@ -212,9 +209,9 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
                     _alignment_index=_alignment_index,
                 )
             else:
-               raise ValueError("Extension branch missing") 
+               raise ValueError("Extension branch missing")
         else:
-            path = os.path.join(name, name + ".fasta")
+            path = os.path.join(name, f"{name}.fasta")
             data = self.data_pipeline.process_fasta(
                 fasta_path=path,
                 alignment_dir=alignment_dir,
@@ -309,14 +306,12 @@ class OpenFoldDataset(torch.utils.data.Dataset):
             while True:
                 # Uniformly shuffle each dataset's indices
                 weights = [1. for _ in range(dataset_len)]
-                shuf = torch.multinomial(
+                yield from torch.multinomial(
                     torch.tensor(weights),
                     num_samples=dataset_len,
                     replacement=False,
                     generator=self.generator,
                 )
-                for idx in shuf:
-                    yield idx
 
         def looped_samples(dataset_idx):
             max_cache_len = int(epoch_len * probabilities[dataset_idx])
@@ -346,10 +341,7 @@ class OpenFoldDataset(torch.utils.data.Dataset):
                 )
                 samples = samples.squeeze()
 
-                cache = [i for i, s in zip(idx, samples) if s]
-
-                for datapoint_idx in cache:
-                    yield datapoint_idx
+                yield from [i for i, s in zip(idx, samples) if s]
 
         self._samples = [looped_samples(i) for i in range(len(self.datasets))]
 
@@ -406,7 +398,7 @@ class OpenFoldDataLoader(torch.utils.data.DataLoader):
             keyed_probs.append(
                 ("use_clamped_fape", [1 - clamp_prob, clamp_prob])
             )
-        
+
         if(stage_cfg.uniform_recycling):
             recycling_probs = [
                 1. / (max_iters + 1) for _ in range(max_iters + 1)
@@ -416,15 +408,15 @@ class OpenFoldDataLoader(torch.utils.data.DataLoader):
                 0. for _ in range(max_iters + 1)
             ]
             recycling_probs[-1] = 1.
-        
+
         keyed_probs.append(
             ("no_recycling_iters", recycling_probs)
         )
 
         keys, probs = zip(*keyed_probs)
-        max_len = max([len(p) for p in probs])
+        max_len = max(len(p) for p in probs)
         padding = [[0.] * (max_len - len(p)) for p in probs] 
-        
+
         self.prop_keys = keys
         self.prop_probs_tensor = torch.tensor(
             [p + pad for p, pad in zip(probs, padding)],
@@ -660,7 +652,7 @@ class OpenFoldDataModule(pl.LightningDataModule):
         dataset = None
         if(stage == "train"):
             dataset = self.train_dataset
-            
+
             # Filter the dataset, if necessary
             dataset.reroll()
         elif(stage == "eval"):
@@ -672,7 +664,7 @@ class OpenFoldDataModule(pl.LightningDataModule):
 
         batch_collator = OpenFoldBatchCollator()
 
-        dl = OpenFoldDataLoader(
+        return OpenFoldDataLoader(
             dataset,
             config=self.config,
             stage=stage,
@@ -682,15 +674,15 @@ class OpenFoldDataModule(pl.LightningDataModule):
             collate_fn=batch_collator,
         )
 
-        return dl
-
     def train_dataloader(self):
         return self._gen_dataloader("train") 
 
     def val_dataloader(self):
-        if(self.eval_dataset is not None):
-            return self._gen_dataloader("eval")
-        return None
+        return (
+            self._gen_dataloader("eval")
+            if (self.eval_dataset is not None)
+            else None
+        )
 
     def predict_dataloader(self):
         return self._gen_dataloader("predict") 

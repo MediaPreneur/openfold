@@ -216,13 +216,12 @@ class TestInvariantPointAttention(unittest.TestCase):
                 config.model.heads.structure_module,
                 config.model.global_config,
             )
-            attn = ipa(
+            return ipa(
                 inputs_1d=act,
                 inputs_2d=static_feat_2d,
                 mask=mask,
                 affine=affine,
             )
-            return attn
 
         f = hk.transform(run_ipa)
 

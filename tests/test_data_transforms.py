@@ -106,17 +106,20 @@ class TestDataTransforms(unittest.TestCase):
 
         max_seq = 1000
         keep_extra = True
-        protein = {}
-        for k in MSA_FEATURE_NAMES:
-            if k in features:
-                protein[k] = torch.tensor(features[k])
+        protein = {
+            k: torch.tensor(features[k])
+            for k in MSA_FEATURE_NAMES
+            if k in features
+        }
 
         protein_processed = sample_msa.__wrapped__(protein.copy(), max_seq, keep_extra)
         for k in MSA_FEATURE_NAMES:
             if k in protein and keep_extra:
                 assert protein_processed[k].shape[0] == min(protein[k].shape[0], max_seq)
-                assert 'extra_'+k in protein_processed
-                assert protein_processed['extra_'+k].shape[0] == protein[k].shape[0] - min(protein[k].shape[0], max_seq)
+                assert f'extra_{k}' in protein_processed
+                assert protein_processed[f'extra_{k}'].shape[0] == protein[
+                    k
+                ].shape[0] - min(protein[k].shape[0], max_seq)
 
     def test_crop_extra_msa(self):
         with open('tests/test_data/features.pkl', 'rb') as file:
@@ -128,8 +131,8 @@ class TestDataTransforms(unittest.TestCase):
 
         protein = crop_extra_msa.__wrapped__(protein, max_extra_msa)
         for k in MSA_FEATURE_NAMES:
-            if "extra_" + k in protein:
-                assert protein["extra_" + k].shape[0] == min(max_extra_msa, num_seq)
+            if f"extra_{k}" in protein:
+                assert protein[f"extra_{k}"].shape[0] == min(max_extra_msa, num_seq)
 
     def test_delete_extra_msa(self):
         protein = {'extra_msa': torch.rand((512, 100, 23))}
@@ -138,7 +141,7 @@ class TestDataTransforms(unittest.TestCase):
         protein['extra_deletion_matrix'] = torch.rand(extra_msa_has_deletion_shape)
         protein = delete_extra_msa(protein)
         for k in MSA_FEATURE_NAMES:
-            assert 'extra_' + k not in protein
+            assert f'extra_{k}' not in protein
         assert 'extra_msa' not in protein
 
     def test_nearest_neighbor_clusters(self):

@@ -58,14 +58,14 @@ class TestModel(unittest.TestCase):
         batch["residue_index"] = torch.arange(n_res)
         batch["msa_feat"] = torch.rand((n_seq, n_res, c.model.input_embedder.msa_dim))
         t_feats = random_template_feats(n_templ, n_res)
-        batch.update({k: torch.tensor(v) for k, v in t_feats.items()})
+        batch |= {k: torch.tensor(v) for k, v in t_feats.items()}
         extra_feats = random_extra_msa_feats(n_extra_seq, n_res)
-        batch.update({k: torch.tensor(v) for k, v in extra_feats.items()})
+        batch |= {k: torch.tensor(v) for k, v in extra_feats.items()}
         batch["msa_mask"] = torch.randint(
             low=0, high=2, size=(n_seq, n_res)
         ).float()
         batch["seq_mask"] = torch.randint(low=0, high=2, size=(n_res,)).float()
-        batch.update(data_transforms.make_atom14_masks(batch))
+        batch |= data_transforms.make_atom14_masks(batch)
         batch["no_recycling_iters"] = torch.tensor(2.)
 
         add_recycling_dims = lambda t: (
